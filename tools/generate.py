@@ -164,10 +164,10 @@ def generate_n_grams(database, sentences_detailed, tags):
                 continue
 
             userLangNbrNgram[(user,lang)] += len(text)
-            nbrNgramLine = len(text) - size
+            nbrNgramLine = len(text) - size + 1
             if nbrNgramLine > 0:
                 hyperLangNbrNgram[lang] += nbrNgramLine
-                for i in range(nbrNgramLine+1):
+                for i in range(nbrNgramLine):
                     ngram = text[i:i+size]
                     hyperLangNgram[lang][ngram] += 1
         print_status_line(size, lineNumber)
