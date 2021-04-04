@@ -41,7 +41,7 @@ NGRAM_FREQ_LIMIT = 0.00001
 # number of 1-gram a user must have submitted in one language to
 # be considered as possibly contributing in that languages
 # NOTE: this number is currently purely arbitrary
-USR_LANG_LIMIT = 400
+USR_LANG_LIMIT = 100
 # we will generate the ngram from 2-gram to X-grams
 UP_TO_N_GRAM = 5
 # some names of the table in the database
@@ -162,8 +162,11 @@ def generate_n_grams(database, sentences_detailed, tags):
             # we ignore the sentence with wrong flag
             if sentenceId in wrongFlags:
                 continue
+            
+            # we calculate contributor score only once
+            if size == 2:
+                userLangNbrNgram[(user,lang)] += len(text)
 
-            userLangNbrNgram[(user,lang)] += len(text)
             nbrNgramLine = len(text) - size + 1
             if nbrNgramLine > 0:
                 hyperLangNbrNgram[lang] += nbrNgramLine
