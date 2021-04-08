@@ -73,6 +73,7 @@ class RawTatodetectDB:
         # initialize tables
         self._init_db()
 
+        tot_ngrams = 0
         user_lang_score = defaultdict(int)
         for n in range(MAX_NGRAM_SIZE, MIN_NGRAM_SIZE - 1, -1):
             table_name = f"grams{n}"
@@ -101,16 +102,18 @@ class RawTatodetectDB:
                     # increment hit counts for each ngram in the sentence
                     for i in range(len(text) - n + 1):
                         ngram = text[i : i + n]
+                        if ngram not in lang_ngram_cnt[lang]:
+                            tot_ngrams += 1
                         lang_ngram_cnt[lang][ngram] += 1
 
                     # when buffer is full, save it into table and empty it
-                    tot_ngrams = sum(len(v) for v in lang_ngram_cnt.values())
                     if tot_ngrams >= buffer_length:
                         for lang, ngram_hits in lang_ngram_cnt.items():
                             self._upsert_ngram_hits(
                                 ngram_hits, lang, table_name
                             )
-                        lang_ngram_cnt = defaultdict(lambda: defaultdict(int))
+                        lang_ngram_cnt.clear()
+                        tot_ngrams = 0
 
             self._print_status(line_id, ngram_size=n, force=True)
 
