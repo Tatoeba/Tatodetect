@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import resource
 import sqlite3
 import sys
 from collections import defaultdict
@@ -45,7 +46,7 @@ class RawTatodetectDB:
         self,
         sentences_detailed_path: Path,
         sentence_blacklist: list,
-        buffer_length: int = 5000000,
+        max_memory: int = 500,
     ) -> None:
         """Count n-grams' occurrences for every Tatoeba language
 
@@ -62,9 +63,9 @@ class RawTatodetectDB:
         sentence_blacklist : list
             the integer ids of the sentences that are not taken
             into account for this counting
-        buffer_length : int, optional
-            the maximum number of n-grams for which counts are kept in RAM,
-            by default 5,000,000.
+        max_memory : int, optional
+            when the process crosses this peak memory usage in megabytes,
+            it triggers a buffer flushing, by default 500.
             Note that process speed mainly depends on the amount of data
             written to disk and consequently increases with the buffer size.
         """
@@ -76,6 +77,9 @@ class RawTatodetectDB:
         self._init_db()
 
         tot_ngrams = 0
+        peak_tot_ngrams = (
+            None  # total number of buffered ngrams at first flush
+        )
         user_lang_score = defaultdict(int)
         for n in range(MAX_NGRAM_SIZE, MIN_NGRAM_SIZE - 1, -1):
             table_name = f"grams{n}"
@@ -109,12 +113,19 @@ class RawTatodetectDB:
                         lang_ngram_cnt[lang][ngram] += 1
 
                     # when buffer is full, save it into table and empty it
-                    if tot_ngrams >= buffer_length:
+                    if (
+                        peak_tot_ngrams is None
+                        and get_peak_memory_usage() >= max_memory
+                    ) or (
+                        peak_tot_ngrams is not None
+                        and tot_ngrams >= peak_tot_ngrams
+                    ):
                         for lang, ngram_hits in lang_ngram_cnt.items():
                             self._upsert_ngram_hits(
                                 ngram_hits, lang, table_name
                             )
                         lang_ngram_cnt.clear()
+                        peak_tot_ngrams = tot_ngrams
                         tot_ngrams = 0
 
             self._print_status(line_id, ngram_size=n, force=True)
@@ -375,9 +386,19 @@ def get_raw_db_path(db_path: Path) -> Path:
     return db_path.parent.joinpath(f"{db_path.stem}_raw{db_path.suffix}")
 
 
+def get_peak_memory_usage() -> int:
+    """Get peak memory usage of current process in megabytes"""
+    if sys.platform in ("linux", "darwin"):
+        # peak RAM returned in kilobytes on Linux, bytes on OS X
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return peak // 1000 if sys.platform == "linux" else peak // 1000000
+
+    return
+
+
 def main():
 
-    buffer_length = 5000000  # ~700MB process memory at peak
+    max_memory = 500  # peak memory usage of process in megabytes
 
     # manage CLI inputs
     if len(sys.argv) < 3:
@@ -400,7 +421,7 @@ def main():
     # same directory as the smaller final database actually used by Tatodetect
     raw_db_path = get_raw_db_path(tatodetect_db_path)
     raw_db = RawTatodetectDB(raw_db_path)
-    raw_db.count(sentences_detailed_path, sentence_blacklist, buffer_length)
+    raw_db.count(sentences_detailed_path, sentence_blacklist, max_memory)
     # copy most significant content from the raw database to the actual
     # Tatodetect database
     tatodetect_db = TatodetectDB(tatodetect_db_path)
