@@ -164,14 +164,14 @@ class RawTatodetectDB:
             conn.execute("PRAGMA temp_store=MEMORY;")
 
             for ngram, hits in ngram_hits.items():
-                ngram = ngram.replace("'", "''")  # escape single quotes
                 conn.execute(
                     f"""
-                    INSERT INTO {table_name} 
-                      VALUES ('{ngram}', '{lang}', {hits}) 
+                    INSERT INTO {table_name}
+                        VALUES (:ngram, :lang, :hits) 
                     ON CONFLICT (gram, lang) 
-                      DO UPDATE SET hit = hit + {hits};
-                    """
+                        DO UPDATE SET hit = hit + :hits;
+                    """,
+                    {"ngram": ngram, "lang": lang, "hits": hits},
                 )
             conn.execute("PRAGMA shrink_memory;")  # reduce memory load
 
@@ -253,6 +253,7 @@ class TatodetectDB:
         for n in range(MIN_NGRAM_SIZE, MAX_NGRAM_SIZE + 1):
             print(f"Importing key {n}-grams from raw database")
             # transfer n-grams counts table with extra frequencies
+            langs_placeholder = ", ".join(["?"] * len(IDEOGRAM_LANGS))
             c.execute(
                 f"""
                 INSERT INTO main.grams{n}
@@ -271,20 +272,22 @@ class TatodetectDB:
                 ON raw_db.grams{n}.lang = lang_ngram_tots.lang
                 WHERE percent > (
                 CASE
-                  WHEN raw_db.grams{n}.lang IN {IDEOGRAM_LANGS}
-                  THEN {IDEOGRAM_NGRAM_FREQ_LIMIT} ELSE {NGRAM_FREQ_LIMIT}
+                  WHEN raw_db.grams{n}.lang IN ({langs_placeholder})
+                  THEN ? ELSE ?
                 END);
-                """
+                """,
+                (*IDEOGRAM_LANGS, IDEOGRAM_NGRAM_FREQ_LIMIT, NGRAM_FREQ_LIMIT),
             )
             c.execute(f"CREATE INDEX gram_grams{n}_idx ON grams{n}(gram);")
 
         print(f"Importing key Tatoeba contributors from raw database")
         c.execute(
-            f"""
+            """
             INSERT INTO main.users_langs
               SELECT * FROM raw_db.users_langs
-              WHERE total > {MIN_USER_CONTRIB_IN_LANG};
-            """
+              WHERE total > ? ;
+            """,
+            (MIN_USER_CONTRIB_IN_LANG,),
         )
         c.execute(
             """
