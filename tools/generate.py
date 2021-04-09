@@ -21,7 +21,32 @@ MIN_NGRAM_SIZE = 2
 MAX_NGRAM_SIZE = 5
 
 
-class RawTatodetectDB:
+class SqliteDB:
+    """A generic sqlite database"""
+
+    def __init__(self, db_path: Path) -> None:
+        """
+        Parameters
+        ----------
+        db_path : Path
+            the location of the sqlite database
+        """
+        self._fp = db_path
+
+    def delete_file(self) -> None:
+        """Delete the sqlite file of this database"""
+        if self._fp.exists():
+            print(f"Deleting {self._fp.name} database")
+            self._fp.unlink()
+
+    @property
+    def path(self) -> Path:
+        """Get the path of the database file"""
+
+        return self._fp
+
+
+class RawTatodetectDB(SqliteDB):
     """A sqlite database for tracking all n-grams counts and user
     contributions in the Tatoeba corpus
 
@@ -32,15 +57,6 @@ class RawTatodetectDB:
     -   the contribution scores of the Tatoeba users in every
         language they have contributed to
     """
-
-    def __init__(self, db_path: Path) -> None:
-        """
-        Parameters
-        ----------
-        db_path : Path
-            the location of the sqlite database
-        """
-        self._fp = db_path
 
     def count(
         self,
@@ -69,10 +85,8 @@ class RawTatodetectDB:
             Note that process speed mainly depends on the amount of data
             written to disk and consequently increases with the buffer size.
         """
-        # the former database is overwritten
-        if self._fp.exists():
-            print(f"Deleting former {self._fp.name} database")
-            self._fp.unlink()
+        # the former database at this path is overwritten
+        self.delete_file()
         # initialize tables
         self._init_db()
 
@@ -214,14 +228,8 @@ class RawTatodetectDB:
             print(msg, end="")
             sys.stdout.flush()
 
-    @property
-    def path(self) -> Path:
-        """Get the path of the database file"""
 
-        return self._fp
-
-
-class TatodetectDB:
+class TatodetectDB(SqliteDB):
     """The actual database that is used to detect languages
     on tatoeba.org
 
@@ -232,15 +240,6 @@ class TatodetectDB:
     Tatodetect 'raw database'.
     """
 
-    def __init__(self, db_path: Path) -> None:
-        """
-        Parameters
-        ----------
-        db_path : Path
-            the location of the sqlite database
-        """
-        self._fp = db_path
-
     def extract_key_content_from(self, raw_db: RawTatodetectDB) -> None:
         """Import key content from the Tatodetect raw database
 
@@ -250,10 +249,8 @@ class TatodetectDB:
             a database containing all Tatoeba n-grams counts and user
             contribution scores
         """
-        # the former Tatodetect database is overwritten
-        if self._fp.exists():
-            print(f"Deleting former {self._fp.name} database")
-            self._fp.unlink()
+        # the former Tatodetect database at this path is overwritten
+        self.delete_file()
         # Initialize tables
         self._init_db()
 
@@ -343,12 +340,6 @@ class TatodetectDB:
                 """
             )
 
-    @property
-    def path(self) -> Path:
-        """Get the path of the database file"""
-
-        return self._fp
-
 
 def get_sentences_with_tag(tags_path: Path, tag_name: str) -> set:
     """Get the ids of the Tatoeba sentences with this tag
@@ -425,6 +416,8 @@ def main():
     # Tatodetect database
     tatodetect_db = TatodetectDB(tatodetect_db_path)
     tatodetect_db.extract_key_content_from(raw_db)
+    # delete biggest database file to save disk space
+    raw_db.delete_file()
 
 
 if __name__ == "__main__":
