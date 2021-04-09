@@ -151,7 +151,7 @@ class RawTatodetectDB:
                       'gram' text not null,
                       'lang'text not null,
                       'hit'  int not null,
-                    PRIMARY KEY("gram","lang")
+                    UNIQUE("gram","lang")
                     );
                     """
                 )
@@ -328,8 +328,7 @@ class TatodetectDB:
                     'gram' text not null,
                     'lang'text not null,
                     'hit'  int not null,
-                    'percent' float not null default 0,
-                    PRIMARY KEY("gram","lang")
+                    'percent' float not null default 0
                     );
                     """
                 )
