@@ -134,10 +134,7 @@ class RawTatodetectDB(SqliteDB):
                         peak_tot_ngrams is not None
                         and tot_ngrams >= peak_tot_ngrams
                     ):
-                        for lang, ngram_hits in lang_ngram_cnt.items():
-                            self._upsert_ngram_hits(
-                                ngram_hits, lang, table_name
-                            )
+                        self._upsert_ngram_hits(lang_ngram_cnt, table_name)
                         lang_ngram_cnt.clear()
                         peak_tot_ngrams = tot_ngrams
                         tot_ngrams = 0
@@ -145,8 +142,7 @@ class RawTatodetectDB(SqliteDB):
             self._print_status(line_id, ngram_size=n, force=True)
 
             # move remaining ngram hits from memory to database tables
-            for lang, ngram_hits in lang_ngram_cnt.items():
-                self._upsert_ngram_hits(ngram_hits, lang, table_name)
+            self._upsert_ngram_hits(lang_ngram_cnt, table_name)
 
             print(" done")
 
@@ -181,7 +177,7 @@ class RawTatodetectDB(SqliteDB):
             )
 
     def _upsert_ngram_hits(
-        self, ngram_hits: dict, lang: str, table_name: str
+        self, lang_ngram_cnt: dict, table_name: str
     ) -> None:
         """Update n-gram hit count values in this table"""
 
@@ -190,16 +186,17 @@ class RawTatodetectDB(SqliteDB):
             conn.execute("PRAGMA journal_mode=MEMORY;")
             conn.execute("PRAGMA temp_store=MEMORY;")
 
-            for ngram, hits in ngram_hits.items():
-                conn.execute(
-                    f"""
-                    INSERT INTO {table_name}
-                        VALUES (:ngram, :lang, :hits) 
-                    ON CONFLICT (gram, lang) 
-                        DO UPDATE SET hit = hit + :hits;
-                    """,
-                    {"ngram": ngram, "lang": lang, "hits": hits},
-                )
+            for lang, d in lang_ngram_cnt.items():
+                for ngram, hits in d.items():
+                    conn.execute(
+                        f"""
+                        INSERT INTO {table_name}
+                          VALUES (:ngram, :lang, :hits) 
+                        ON CONFLICT (gram, lang) 
+                          DO UPDATE SET hit = hit + :hits;
+                        """,
+                        {"ngram": ngram, "lang": lang, "hits": hits},
+                    )
             conn.execute("PRAGMA shrink_memory;")  # reduce memory load
 
     def _insert_user_scores(self, user_lang_score: dict) -> None:
