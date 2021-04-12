@@ -261,6 +261,7 @@ class TatodetectDB(SqliteDB):
             print(f"Importing key {n}-grams from raw database")
             # transfer n-grams counts table with extra frequencies
             langs_placeholder = ", ".join(["?"] * len(IDEOGRAM_LANGS))
+
             c.execute(
                 f"""
                 INSERT INTO main.grams{n}
