@@ -91,9 +91,7 @@ class RawTatodetectDB(SqliteDB):
         self._init_db()
 
         tot_ngrams = 0
-        peak_tot_ngrams = (
-            None  # total number of buffered ngrams at first flush
-        )
+        peak_tot_ngrams = None  # number of ngrams at first buffer flush
         user_lang_score = defaultdict(int)
         for n in range(MAX_NGRAM_SIZE, MIN_NGRAM_SIZE - 1, -1):
             table_name = f"grams{n}"
@@ -182,9 +180,8 @@ class RawTatodetectDB(SqliteDB):
         """Update n-gram hit count values in this table"""
 
         with sqlite3.connect(self._fp) as conn:
-            # some optimization to make connection faster
-            conn.execute("PRAGMA journal_mode=MEMORY;")
-            conn.execute("PRAGMA temp_store=MEMORY;")
+            conn.execute("PRAGMA temp_store=FILE;")
+            conn.execute("PRAGMA journal_mode=DELETE;")
 
             for lang, d in lang_ngram_cnt.items():
                 for ngram, hits in d.items():
@@ -379,7 +376,7 @@ def get_peak_memory_usage() -> int:
     if sys.platform in ("linux", "darwin"):
         # peak RAM returned in kilobytes on Linux, bytes on OS X
         peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        return peak // 1000 if sys.platform == "linux" else peak // 1000000
+        return peak // 1000 if sys.platform == "linux" else peak // 1000 ** 2
 
     return
 
