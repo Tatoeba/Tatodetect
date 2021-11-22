@@ -18,6 +18,11 @@
     path: '/tmp/cppcms-1.0.5/CMakeLists.txt'
     regexp: "^(enable_testing\\(\\))$"
     replace: "#\\1"
+- name: Disable building tests for cppcms
+  replace:
+    path: '/tmp/cppcms-1.0.5/CMakeLists.txt'
+    regexp: "^(.*\\$\\{TEST\\}.*)$"
+    replace: "#\\1"
 - name: Generate makefile for cppcms
   command: cmake . chdir=/tmp/cppcms-1.0.5
 - name: Compile cppcms
