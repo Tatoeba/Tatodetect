@@ -18,6 +18,10 @@
     path: '/tmp/cppcms-1.0.5/CMakeLists.txt'
     regexp: "^(enable_testing\\(\\))$"
     replace: "#\\1"
+- name: Temporarily install dev dependency python-is-python3 package
+  apt:
+    name: python-is-python3
+    state: present
 - name: Generate makefile
   command: cmake . chdir=/tmp/cppcms-1.0.5
 - name: Compile
@@ -49,6 +53,10 @@
   template: src=tatodetect.js.j2 dest=/etc/tatodetect.js mode=0644
 - name: Copy default options file to system-wide location
   copy: src=default dest=/etc/default/tatodetect mode=0644
+- name: Uninstall dev dependency python-is-python3 package
+  apt:
+    name: python-is-python3
+    state: absent
 
 - name: Create user tatodetect
   user:
