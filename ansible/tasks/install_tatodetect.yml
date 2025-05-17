@@ -20,10 +20,6 @@
     replace: "#\\1"
 - name: Generate makefile
   command: cmake . chdir=/tmp/cppcms-1.0.5
-- name: Save up RAM by stopping Manticore
-  service:
-    name: manticore
-    state: stopped
 - name: Compile
   command: make -j2 chdir=/tmp/cppcms-1.0.5
 - name: Install
