@@ -20,6 +20,10 @@
     replace: "#\\1"
 - name: Generate makefile
   command: cmake . chdir=/tmp/cppcms-1.0.5
+- name: Save up RAM by stopping Manticore
+  service:
+    name: manticore
+    state: stopped
 - name: Compile
   command: make -j2 chdir=/tmp/cppcms-1.0.5
 - name: Install
@@ -59,7 +63,7 @@
   get_url: url={{ngrams_db_download_url}} dest={{ngrams_db_file}} mode=0644
   when: ngrams_create_mode == "download"
 
-- include: generate_ngrams_db.yml
+- include_tasks: generate_ngrams_db.yml
   when: ngrams_create_mode == "generate"
 
 - name: Reload daemons
